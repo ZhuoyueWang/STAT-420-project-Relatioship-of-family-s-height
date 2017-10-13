@@ -1,0 +1,287 @@
+---
+title: 'Data analysis project: Relatioship of family''s height'
+author: "Zhuoyue Wang, Weizhuo Wang, Juhee Chung"
+date: "August 5, 2017"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    theme: readable
+    toc: yes
+---
+
+#STAT 420 Data analysis project: The relationship between the height of parents and kids
+
+We usually assume that if both parents are tall, the children would also be tall. But is the fact like what we expected? 
+
+In this project, we want to find out whether this cognition is true, and if it is true, how strong is the effect of parents??? height on their children? If there is a relationship between them, what kind of relationship do they have, linear or logarithmic? 
+
+Galton's family heights data has been a preeminent historical dataset in regression analysis, on which the original model and basic results have survived the close scrutiny of statisticians for 132 years. The dataset gives information based on the famous 1885 study of Francis Galton exploring the relationship between the heights of adult children and the heights of their parents. (retrieved from http://www.math.uah.edu/stat/data/Galton.csv ). 
+
+This file has 898 observations and 6 variables. One of them is categorical variable, and others are numerical variable. It records 898 children's height from 205 families.
+
+The variable information is given below:
+
+Family: The family that the child belongs to, labeled by the numbers from 1 to 204 and 136A
+
+Father: The father's height, in inches
+
+Mother: The mother's height, in inches
+
+Average: The average height between father and mother in a family, in inches
+
+Gender: The gender of the child, male (M) or female (F)
+
+Height: The height of the child, in inches
+
+Kids: The number of kids in the family of the child
+
+
+
+
+
+```{r}
+galton = read.csv("Galton.csv")
+summary(galton)
+```
+
+##Simple Linear Regression
+
+```{r}
+ParentAverageVsKid = lm(Height ~ Average, data = galton)
+summary(ParentAverageVsKid)
+anova(ParentAverageVsKid)
+ParentAverageVsKidRMSE = sqrt(mean(resid(ParentAverageVsKid)^2))
+ParentAverageVsKidRMSE
+```
+We can see that the p-value is nearly equal to zero. So we can have statistical confidence to conclude that there is a linear relationship between parent's average height and childen's height.
+
+```{r}
+plot(Height ~ Average, data = galton,
+     xlab = "Parent's average height (unit: inches)",
+     ylab = "Children's height (unit: inches)",
+     main = "Children's height versus Parent's average height",
+     pch  = 20,
+     col  = "grey")
+abline(ParentAverageVsKid, lwd = 3, col = "dodgerblue")
+```
+
+```{r}
+FatherVsKid = lm(Height ~ Father, data = galton)
+summary(FatherVsKid)
+anova(FatherVsKid)
+FatherVsKidRMSE = sqrt(mean(resid(FatherVsKid)^2))
+FatherVsKidRMSE
+```
+We can see that the p-value is nearly equal to zero. So we can have statistical confidence to conclude that there is a linear relationship between father's height and childen's height.
+
+```{r}
+plot(Height ~ Father, data = galton,
+     xlab = "Father's height (unit: inches)",
+     ylab = "Children's height (unit: inches)",
+     main = "Children's height versus Father's height",
+     pch  = 20,
+     col  = "grey")
+abline(FatherVsKid, lwd = 3, col = "dodgerblue")
+```
+
+```{r}
+MotherVsKid = lm(Height ~ Mother, data = galton)
+summary(MotherVsKid)
+anova(MotherVsKid)
+MotherVsKidRMSE = sqrt(mean(resid(MotherVsKid)^2))
+MotherVsKidRMSE
+```
+We can see that the p-value is nearly equal to zero. So we can have statistical confidence to conclude that there is a linear relationship between mother's height and childen's height.
+
+```{r}
+plot(Height ~ Mother, data = galton,
+     xlab = "Mother's height (unit: inches)",
+     ylab = "Children's height (unit: inches)",
+     main = "Children's height versus Mother's height",
+     pch  = 20,
+     col  = "grey")
+abline(MotherVsKid, lwd = 3, col = "dodgerblue")
+```
+
+RMSE represents the square root of the average of the error. In these three models, we can see that the first model(Children's height versus Parent's average height) has the lowest RMSE, which means it is the most precise one. Then the second(Children's height versus Father's height), and the third(Children's height versus Mother's height).
+
+So we can conclude that both parents' height affect the kid's height, and father's height is more influential than mother's height.
+
+##Multiple Linear Regression
+
+**Choose the "best" model**
+```{r}
+galton=read.csv("Galton.csv")
+Gender=as.factor(ifelse(as.character(galton$Gender)=="M", 1,0))
+```
+
+```{r}
+# full additive model
+height_add=lm(Height ~ .-Family, data=galton)
+
+# backward AIC selection
+height_add_aic=step(height_add, direction="backward", trace=0)
+
+# backward BIC selection
+n=length(resid(height_add))
+height_add_bic=step(height_add, direction="backward", k=log(n), trace=0)
+
+# choose between AIC and BIC
+anova(height_add_aic, height_add_bic)
+```
+
+- Fail to reject H0, we prefer BIC selected model.
+
+```{r}
+# choose between BIc selected model and original additive model
+anova(height_add_bic, height_add) 
+```
+
+- Fail to reject H0, we still prefer BIC selected model.
+
+```{r}
+# full interaction model
+height_int=lm(Height ~ Father*Mother*Gender*Kids, data=galton)
+summary(height_int)
+# backward AIC selection
+height_int_aic=step(height_int, direction="backward", trace=0)
+
+# backward BIC selection
+n=length(resid(height_int))
+height_int_bic=step(height_int, direction="backward", k=log(n), trace=0)
+
+# choose between AIC and BIC
+anova(height_int_aic, height_int_bic)
+```
+
+- Fail to reject H0, we prefer BIC selected model.
+
+```{r}
+# choose between BIc selected model and original interaction model
+anova(height_int_bic, height_int) 
+```
+
+- Fail to reject H0, we prefer BIC selected model. (This model is same as additive BIC selected model)
+
+```{r}
+# rename the chosen model for future use
+height_model=height_int_bic
+summary(height_model)
+```
+
+
+** Check if the model violates some assumptions **
+```{r}
+plot(fitted(height_model), resid(height_model), col = "grey", pch = 20, xlab = "Fitted", ylab = "Residuals")
+abline(h = 0, col = "darkorange", lwd = 3)
+```
+
+- The plot does not seem "normal".
+
+```{r}
+# homoscedasticity
+library(lmtest)
+bptest(height_model)
+```
+
+- p-value > 0.05
+- We do not reject H0, the model is good with homoscedasticity assumption.
+
+```{r}
+# multicolinearity
+pairs(galton, col = "dodgerblue", pch=20)
+```
+
+- There is no serious collinearity problem.
+
+```{r}
+# normal distribution
+qqnorm(resid(height_model), col = "darkgrey", pch=20)
+qqline(resid(height_model), col = "darkorange", lwd = 3)
+
+shapiro.test(resid(height_model))
+```
+
+- 0.01 < p-value < 0.05
+- Reject H0 at 0.05 level, but do not reject at 0.01 level.
+- The residuals approximately follow a normal distribution.
+
+
+** Make prediction **
+```{r}
+# A boy kid in a 4-kids family with mother 64 inches tall and father 73 inches tall
+
+pred=data.frame(Father=73, Mother=62, Gender="M", Kids=4) 
+predict(height_model, pred, interval="prediction", level=0.95)
+
+conf=data.frame(Father=73, Mother=62, Gender="M", Kids=4) 
+predict(height_model, conf, interval="confidence", level=0.95)
+```
+
+- The predicted height in this case is 70.13981
+- The prediction interval is [65.89919, 74.38042], the confidence interval is [69.81457, 70.46505].
+
+##Logarithmic Regression
+
+```{r}
+model_1=lm(Height~Father +Mother + Gender, data = galton)
+model_log = lm(log(Height)~ log(Father) + log(Mother) + Gender + log(Kids), data =galton)
+
+anova(model_log)
+#exclude Kids
+#changer Gender variable to numeric
+
+Gender = factor(ifelse(as.character(galton$Gender)=="M",1,0))
+Gender
+
+plot_fitted_resid = function(model, pointcol = "dodgerblue", linecol = "darkorange") {
+  plot(fitted(model), resid(model), 
+       col = pointcol, pch = 20, cex = 1.5,
+       xlab = "Fitted", ylab = "Residuals")
+  abline(h = 0, col = linecol, lwd = 2)
+}
+plot_qq = function(model, pointcol = "dodgerblue", linecol = "darkorange") {
+  qqnorm(resid(model), col = pointcol, pch = 20, cex = 1.5)
+  qqline(resid(model), col = linecol, lwd = 2)
+}
+```
+
+```{r}
+model_2 = lm(log(Height)~ log(Father) + log(Mother) + Gender, data=galton)
+
+plot_fitted_resid(model_2)
+plot_qq(model_2)
+
+anova(model_2)
+
+
+model_3 = lm(log(Height)~ log(Father) + log(Mother) + Gender + Father*Mother*Gender, data=galton)
+plot_qq(model_3)
+plot_fitted_resid(model_3)
+anova(model_3)
+anova(model_2,model_3)
+#I choose model_2, 
+plot_qq(model_2)
+shapiro.test(resid(model_2))
+#roughly the points fall very close to the line in the QQ plot, and Shapiro test did not reject, I believe that the normality assumption has not been violated.
+plot_fitted_resid(model_2)
+#it seems that linear assumption is violated, constant variance assumption also violated
+model_4 = lm(log(Height)~log(Father)* log(Mother) +  I(Father ^ 2)+I(Mother ^ 2) , data = galton )
+plot_fitted_resid(model_4)
+plot_qq(model_4)
+#removed non constant variance bit. 
+```
+
+##Conclusion
+
+Because in Logarithmic regression we use log(height) as the response variable, we can't use anova to compare these models created by different types of regression.
+
+Instead of anova, we use adjusted R square to compare the useness of different models.
+
+```{r}
+summary(ParentAverageVsKid)$adj.r.squared
+summary(height_model)$adj.r.squared
+summary(model_2)$adj.r.squared
+```
+We can see that the results got from Multiple Linear Regression and Logarthemic Regression are much higher than that from Simple linear Regression. In additon, these two values are nearly same. So We believe that Multiple Linear Regression and Logarthemic Regression both can explain the relationship between the height of parents and that of kids.
